@@ -9,12 +9,12 @@ import re
 
 @dataclass
 class BlueprintStep:
-    instruction: str 
+    step_number: int
     required_variables: List[str] 
     
-    def render(self, extracted_vars: Dict[str, str]) -> str:
-        step_vars = {k: extracted_vars.get(k, "UNKNOWN") for k in self.required_variables}
-        return f"{self.instruction}\nVARIABLES: {step_vars}"
+    def render(self, extracted_vars: dict) -> str:
+            step_vars = {k: extracted_vars.get(k) for k in self.required_variables}
+            return f"Executing: STEP {self.step_number}\nVariables: {step_vars}"
 
 @dataclass
 class AgentBlueprint:

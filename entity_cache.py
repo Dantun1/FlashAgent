@@ -8,11 +8,11 @@ financebench_analysis_plan = AgentBlueprint(
     description="analyze the [metric] of [company]",  
     steps=[
         BlueprintStep(
-            instruction="Invoke the document retrieval tool. Pass the target organization and fiscal year to load the correct financial statement into context.",
+            step_number=1,
             required_variables=["company", "year"]
         ),
         BlueprintStep(
-            instruction="Search the retrieved context document for the target financial metric. Return the exact numerical value.",
+            step_number=2,
             required_variables=["metric"]
         )
     ]
