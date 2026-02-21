@@ -30,5 +30,6 @@ if __name__ == "__main__":
         # Testing the masking
         masked_q, vars = engine._extract_and_mask(q)
         print(vars,sep="\n", end = "\n")
+        #Testing the retrieval (should return the generic blueprint)
         data = engine.retrieve_plan(q)
         print(data["matched_id"])
