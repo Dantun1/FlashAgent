@@ -76,8 +76,9 @@ class PlanCacheEngine:
         variables = {}
         masked_query = query.lower() 
 
+
         # TODO: figure out 20-30 optimal labels for extraction, need to be representative for all financebench
-        labels = ["financial metric","financial quantity", "metric", "quantity", "company", "year"] 
+        labels = ["financial metric",  "unit of financial quantity", "financial data document", "metric", "company", "year"] 
         entities = self.ner.predict_entities(query, labels, threshold=0.3)
         
         for e in entities:

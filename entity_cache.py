@@ -24,12 +24,7 @@ engine.add_blueprint(financebench_analysis_plan)
 
 if __name__ == "__main__":
     questions = get_questions()
+    print(questions[0])
+    masked_q, _ = engine._extract_and_mask(questions[0])
 
-    sample_qs = questions[:3]
-    for q in sample_qs:
-        # Testing the masking
-        masked_q, vars = engine._extract_and_mask(q)
-        print(vars,sep="\n", end = "\n")
-        #Testing the retrieval (should return the generic blueprint)
-        data = engine.retrieve_plan(q)
-        print(data["matched_id"])
+    print(masked_q)
