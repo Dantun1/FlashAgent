@@ -115,7 +115,11 @@ class PlanCacheEngine:
         db_vecs = np.array(self.vector_index)
         scores = cosine_similarity(query_vec, db_vecs)[0]
         best_idx = np.argmax(scores)
-        
+
+        if scores[best_idx] < 0.7:
+            # TODO: Implement Cache-miss scenario
+            return "No Match"
+
         matched_blueprint = self.blueprint_db[best_idx]
         
         
