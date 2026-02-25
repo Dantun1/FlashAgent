@@ -7,20 +7,21 @@ from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 import re
 
-@dataclass
-class BlueprintStep:
-    step_number: int
-    required_variables: List[str] 
+from blueprint_generation import run_vertex_teacher
+
+# @dataclass
+# class BlueprintStep:
+#     step_number: int
+#     required_variables: List[str] 
     
-    def render(self, extracted_vars: dict) -> str:
-            step_vars = {k: extracted_vars.get(k) for k in self.required_variables}
-            return f"Executing: STEP {self.step_number}\nVariables: {step_vars}"
+#     def render(self, extracted_vars: dict) -> str:
+#             step_vars = {k: extracted_vars.get(k) for k in self.required_variables}
+#             return f"Executing: STEP {self.step_number}\nVariables: {step_vars}"
 
 @dataclass
 class AgentBlueprint:
-    id: str
     description: str 
-    steps: List[BlueprintStep]
+    steps: List[str]
 
 class PlanCacheEngine:
     """
@@ -57,7 +58,7 @@ class PlanCacheEngine:
         vector = self.embedder.encode(blueprint.description)
         self.blueprint_db.append(blueprint)
         self.vector_index.append(vector)
-        print(f"Stored Blueprint: [{blueprint.id}]")
+        print(f"Stored Blueprint: [{blueprint.description}]\n Stored steps: {blueprint.steps}")
 
     def _extract_and_mask(self, query: str) -> Tuple[str, Dict[str, str]]:
         """
@@ -87,6 +88,8 @@ class PlanCacheEngine:
             masked_query = masked_query.replace(e['text'].lower(), f"[{e['label']}]")
 
         return masked_query, variables
+    
+
 
     def retrieve_plan(self, user_query: str) -> Dict[str, Any] | str:
         """Retrieve the best matching blueprint.
@@ -105,9 +108,10 @@ class PlanCacheEngine:
                 
         """
 
-        masked_intent, variables = self._extract_and_mask(user_query)
+        masked_query, variables = self._extract_and_mask(user_query)
+        print(f"masked query: {masked_query} , variables: {variables}")
 
-        query_vec = self.embedder.encode(masked_intent).reshape(1, -1)
+        query_vec = self.embedder.encode(masked_query).reshape(1, -1)
         
         if not self.vector_index:
             return "DB Empty"
@@ -116,16 +120,29 @@ class PlanCacheEngine:
         scores = cosine_similarity(query_vec, db_vecs)[0]
         best_idx = np.argmax(scores)
 
-        if scores[best_idx] < 0.7:
-            # TODO: Implement Cache-miss scenario
-            return "No Match"
-
         matched_blueprint = self.blueprint_db[best_idx]
+    
+        if scores[best_idx] < 0.7:
+            print(f"Cache Miss: {scores[best_idx]} < 0.7, Generating blueprint")
+            blueprint = json.loads(run_vertex_teacher(masked_query))
+            
+            # add agentblueprint to db
+            agent_blueprint = AgentBlueprint(
+                description=  blueprint["description"],
+                steps = blueprint["steps"],
+            )
+            self.add_blueprint(agent_blueprint)
+            matched_blueprint = agent_blueprint
+
+            print(self.blueprint_db)
+            
+
+
+        
         
         
         return {
-            "matched_id": matched_blueprint.id,
-            "masked_intent": masked_intent,
+            "masked_query": masked_query,
             "blueprint" : matched_blueprint,
             "variables": variables
         }

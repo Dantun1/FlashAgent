@@ -30,14 +30,17 @@ def run_vertex_teacher(masked_query):
     - Each step must describe the logic and explicitly state which tool the Worker should use.
     - Output MUST be a valid JSON array of strings, where each string is one step.
 
-    --- FEW-SHOT EXAMPLE ---
-    USER MASKED QUERY: "Calculate the operating margin for [ORG] in [year]."
+--- FEW-SHOT EXAMPLE ---
+    USER MASKED QUERY: "Calculate the [metric] for [ORG] in [year]."
     YOUR JSON OUTPUT:
-    [
-        "Step 1: Invoke the `fetch_document` tool using the target [ORG] and [year] to get the financial context.",
-        "Step 2: Scan the retrieved document to find the Operating Income and Total Revenue. Invoke the `calculate_math` tool to divide Operating Income by Total Revenue.",
-        "Step 3: Format the calculated result as a percentage and invoke the `submit_answer` tool with the final value."
-    ]
+    {{
+        "description": "Financial metric calculation: Retrieve the annual report for the target organization and year, locate the specific numerical components required for the requested metric, and perform any necessary math.",
+        "steps": [
+            "Step 1: Invoke the `fetch_document` tool using [ORG], [year], and [metric] to get the financial context.",
+            "Step 2: Scan the retrieved document to find the numerical values that make up the [metric]. If a calculation is required, invoke the `calculate_math` tool with the formula.",
+            "Step 3: Invoke the `submit_answer` tool with the final extracted or calculated value."
+        ]
+    }}
     ------------------------
 
     ACTUAL MASKED QUERY TO PROCESS: "{masked_query}"
@@ -51,5 +54,5 @@ def run_vertex_teacher(masked_query):
     
     return response.text
 
-
-print(run_vertex_teacher("what is the [year] [financial metric] (in [unit of financial quantity]) for [company]? give a response to the question by relying on the details shown in the [financial data document]."))
+if __name__ == "__main__":
+    print(run_vertex_teacher("what is the [year] [financial metric] (in [unit of financial quantity]) for [company]? give a response to the question by relying on the details shown in the [financial data document]."))
