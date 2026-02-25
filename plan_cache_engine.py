@@ -121,9 +121,10 @@ class PlanCacheEngine:
         best_idx = np.argmax(scores)
 
         matched_blueprint = self.blueprint_db[best_idx]
+        max_score = scores[best_idx]
     
-        if scores[best_idx] < 0.7:
-            print(f"Cache Miss: {scores[best_idx]} < 0.7, Generating blueprint")
+        if max_score < 0.7:
+            print(f"Cache Miss: {max_score} < 0.7, Generating blueprint")
             blueprint = json.loads(run_vertex_teacher(masked_query))
             
             # add agentblueprint to db
@@ -136,15 +137,11 @@ class PlanCacheEngine:
 
             print(self.blueprint_db)
             
-
-
-        
-        
-        
         return {
             "masked_query": masked_query,
             "blueprint" : matched_blueprint,
-            "variables": variables
-        }
+            "variables": variables,
+            "score": float(max_score)
+        }, scores[best_idx]
 
 
