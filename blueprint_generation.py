@@ -11,7 +11,6 @@ proj_id = os.getenv("API_KEY")
 vertexai.init(project=proj_id, location="us-central1") 
 
 def run_vertex_teacher(masked_query):
-    print("Cache Miss! Routing to Vertex AI...")
     model = GenerativeModel("gemini-2.5-pro")
     
     prompt = f"""

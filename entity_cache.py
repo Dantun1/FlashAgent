@@ -13,5 +13,4 @@ engine.add_blueprint(financebench_analysis_plan)
 if __name__ == "__main__":
     questions = get_questions()
     q = questions[0]
-    print(q)
     engine.retrieve_plan(q)

@@ -45,6 +45,20 @@ class PlanCacheEngine:
         self.blueprint_db: List[AgentBlueprint] = []
         # vectors not hashable, store as parallel arrays instead of dict.
         self.vector_index = []
+    
+    def _get_task_type(self, query: str) -> str:
+        """Zero-latency heuristic to classify the expected output type."""
+        query_lower = query.lower()
+        
+        # Keywords that strongly indicate text analysis rather than pure math
+        explanation_keywords = ['why', 'drove', 'explain', 'reason', 'factors', 'impact', 'how did', 'cause']
+        
+        if any(kw in query_lower for kw in explanation_keywords):
+            return "[EXPLANATION]"
+        elif "compare" in query_lower or "higher" in query_lower or "lower" in query_lower:
+            return "[COMPARISON]"
+        else:
+            return "[EXTRACTION]"
 
     def add_blueprint(self, blueprint: AgentBlueprint) -> None:
         """Add a blueprint and cache its embedding.
@@ -58,7 +72,6 @@ class PlanCacheEngine:
         vector = self.embedder.encode(blueprint.tag)
         self.blueprint_db.append(blueprint)
         self.vector_index.append(vector)
-        print(f"Stored Blueprint: [{blueprint.tag}]\n Stored steps: {blueprint.steps}")
 
     def _extract_and_mask(self, query: str) -> Tuple[str, Dict[str, str]]:
         """
@@ -109,12 +122,25 @@ class PlanCacheEngine:
         """
 
         masked_query, variables = self._extract_and_mask(user_query)
-        print(f"masked query: {masked_query} , variables: {variables}")
 
-        query_vec = self.embedder.encode(masked_query).reshape(1, -1)
+        task_type = self._get_task_type(user_query)
+        amplified_query = f"{task_type} {masked_query}"
+
+        query_vec = self.embedder.encode(amplified_query).reshape(1, -1)
         
         if not self.vector_index:
-            return "DB Empty"
+            print("DB empty, generating first blueprint")
+            blueprint = json.loads(run_vertex_teacher(masked_query))
+            
+            # add agentblueprint to db, tag is the masked_query
+            agent_blueprint = AgentBlueprint(
+                tag= amplified_query,
+                steps = blueprint["steps"],
+            )
+            self.add_blueprint(agent_blueprint)
+            matched_blueprint = agent_blueprint
+
+            
             
         db_vecs = np.array(self.vector_index)
         scores = cosine_similarity(query_vec, db_vecs)[0]
@@ -123,25 +149,23 @@ class PlanCacheEngine:
         matched_blueprint = self.blueprint_db[best_idx]
         max_score = scores[best_idx]
     
-        if max_score < 0.7:
-            print(f"Cache Miss: {max_score} < 0.7, Generating blueprint")
+        if max_score < 0.8:
+            print(f"Cache Miss: {max_score} < 0.8, Generating blueprint")
             blueprint = json.loads(run_vertex_teacher(masked_query))
             
             # add agentblueprint to db, tag is the masked_query
             agent_blueprint = AgentBlueprint(
-                tag= masked_query,
+                tag= amplified_query,
                 steps = blueprint["steps"],
             )
             self.add_blueprint(agent_blueprint)
             matched_blueprint = agent_blueprint
-
-            print(self.blueprint_db)
-            
+        else:
+            print(f"CACHE HIT: {amplified_query} hits with {matched_blueprint.tag}, SIMILARITY: {max_score}")
         return {
-            "masked_query": masked_query,
+            "masked_query": amplified_query,
             "blueprint" : matched_blueprint,
             "variables": variables,
-            "score": float(max_score)
         }, scores[best_idx]
 
 
