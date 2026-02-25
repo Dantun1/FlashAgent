@@ -16,16 +16,18 @@ def run_vertex_teacher(masked_query):
     
     prompt = f"""
     You are an expert AI Systems Architect. 
-    Your job is to read a masked user query and design a step-by-step Execution Blueprint 
-    that a separate, simpler "Worker" AI will follow to solve the problem.
+    Your job is to read a masked user query and design a step-by-step Execution Blueprint
+    that a separate, simpler "Worker" AI will follow to solve the problem. 
+    
 
     AVAILABLE TOOLS FOR THE WORKER:
-    1. `fetch_document(company, year, metric_context)`: Retrieves the financial PDF.
+    1. `fetch_document(company, year, target_metric)`: Retrieves the financial PDF. 'target_metric' MUST be the specific financial variable or line item needed (e.g., "Operating Income", "Capital Expenditure").
     2. `calculate_math(expression)`: Computes math safely.
     3. `submit_answer(final_value)`: Returns the final answer to the user and ends the loop.
 
     STRICT RULES:
-    - The blueprint must be completely GENERALIZED. Do not use specific company names or numbers. 
+    - The output must contain only useful words with no filler text introducing the steps.
+    - The steps must be completely GENERALIZED. Do not use specific company names or numbers. 
     - Refer only to the variables present in the masked query (e.g., [ORG], [year], [metric]).
     - Each step must describe the logic and explicitly state which tool the Worker should use.
     - Output MUST be a valid JSON array of strings, where each string is one step.
@@ -34,7 +36,6 @@ def run_vertex_teacher(masked_query):
     USER MASKED QUERY: "Calculate the [metric] for [ORG] in [year]."
     YOUR JSON OUTPUT:
     {{
-        "description": "Financial metric calculation: Retrieve the annual report for the target organization and year, locate the specific numerical components required for the requested metric, and perform any necessary math.",
         "steps": [
             "Step 1: Invoke the `fetch_document` tool using [ORG], [year], and [metric] to get the financial context.",
             "Step 2: Scan the retrieved document to find the numerical values that make up the [metric]. If a calculation is required, invoke the `calculate_math` tool with the formula.",
