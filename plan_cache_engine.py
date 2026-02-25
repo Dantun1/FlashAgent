@@ -20,7 +20,7 @@ from blueprint_generation import run_vertex_teacher
 
 @dataclass
 class AgentBlueprint:
-    description: str 
+    tag: str 
     steps: List[str]
 
 class PlanCacheEngine:
@@ -55,10 +55,10 @@ class PlanCacheEngine:
         Returns:
             None
         """
-        vector = self.embedder.encode(blueprint.description)
+        vector = self.embedder.encode(blueprint.tag)
         self.blueprint_db.append(blueprint)
         self.vector_index.append(vector)
-        print(f"Stored Blueprint: [{blueprint.description}]\n Stored steps: {blueprint.steps}")
+        print(f"Stored Blueprint: [{blueprint.tag}]\n Stored steps: {blueprint.steps}")
 
     def _extract_and_mask(self, query: str) -> Tuple[str, Dict[str, str]]:
         """
@@ -127,9 +127,9 @@ class PlanCacheEngine:
             print(f"Cache Miss: {max_score} < 0.7, Generating blueprint")
             blueprint = json.loads(run_vertex_teacher(masked_query))
             
-            # add agentblueprint to db
+            # add agentblueprint to db, tag is the masked_query
             agent_blueprint = AgentBlueprint(
-                description=  blueprint["description"],
+                tag= masked_query,
                 steps = blueprint["steps"],
             )
             self.add_blueprint(agent_blueprint)
