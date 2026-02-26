@@ -5,12 +5,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-proj_id = os.getenv("API_KEY")
+proj_id = os.getenv("PROJECT_ID")
 
 
 vertexai.init(project=proj_id, location="us-central1") 
 
-def run_vertex_teacher(masked_query):
+def generate_new_blueprint(masked_query):
     model = GenerativeModel("gemini-2.5-pro")
     
     prompt = f"""
@@ -55,4 +55,4 @@ def run_vertex_teacher(masked_query):
     return response.text
 
 if __name__ == "__main__":
-    print(run_vertex_teacher("what is the [year] [financial metric] (in [unit of financial quantity]) for [company]? give a response to the question by relying on the details shown in the [financial data document]."))
+    print(generate_new_blueprint("what is the [year] [financial metric] (in [unit of financial quantity]) for [company]? give a response to the question by relying on the details shown in the [financial data document]."))
