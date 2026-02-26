@@ -1,26 +1,53 @@
-from plan_cache_engine import PlanCacheEngine, AgentBlueprint
+import csv
+import time
+import json
+
+from plan_cache_engine import PlanCacheEngine
 from utils.finbench_utils import get_questions
-import matplotlib.pyplot as plt
 
-test_engine = PlanCacheEngine()
-questions = get_questions()
+def run_evaluation(test_queries, output_csv="./data/cache_telemetry.csv"):
+    engine = PlanCacheEngine()
 
-prev_hits = 0
-for q in questions:
-    test_engine.retrieve_plan(q)
-
-    hits, total, ratio = test_engine.hit_stats
-    if hits == prev_hits:
-        print(f"CACHE MISS")
-    else:
-        print(f"CACHE HIT")
-
-    print(f"\nCURRENT SCORE: {ratio}")
-
-    prev_hits = hits
+    fieldnames = [
+        "query_index", "original_query", "query_classification", "key_query", "matched_blueprint_tag", 
+        "cosine_similarity", "cache_status", 
+        "latency_ms", 
+        "vertex_input_tokens", "vertex_output_tokens",
+        "is_correct_routing"
+    ]
     
+    with open(output_csv, mode='w', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
 
+    for idx, query in enumerate(test_queries):
+        start_time = time.perf_counter()
+        
+        result = engine.retrieve_plan(query)
+        
+        latency_ms = (time.perf_counter() - start_time) * 1000
+        
+        # Log the results
+        row_data = {
+            "query_index": idx + 1,
+            "original_query": query,
+            "query_classification": result["tag"].split("]")[0] + "]",
+            "key_query": result["tag"],
+            "matched_blueprint_tag": result["blueprint"].tag,
+            "cosine_similarity": round(result["score"], 4),
+            "cache_status": result["status"],
+            "latency_ms": round(latency_ms, 2),
+            "vertex_input_tokens": result["inp_tokens"],    
+            "vertex_output_tokens": result["out_tokens"],  
+            "is_correct_routing": "" # to be added manually (false/true positives)
+        }
+        
+        with open(output_csv, mode='a', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writerow(row_data)
+            
+        print(f"[{result['status']}] {latency_ms:.2f}ms | Score: {result['score']:.3f} | {query[:40]}...")
 
-sims = test_engine.similarities
-plt.scatter(range(len(sims)),sims)
-plt.show()
+if __name__ == "__main__":
+    questions = get_questions()
+    run_evaluation(questions)

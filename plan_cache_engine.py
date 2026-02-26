@@ -82,12 +82,16 @@ class PlanCacheEngine:
         # Instantly generate + return if cache empty
         if not self.vector_index:
             self.miss_logger.info("EMPTY_DB_MISS | key_query=%s", key_query)
-            blueprint =  self._gen_blueprint_to_db(masked_query, key_query)
+            blueprint, inp_tokens, out_tokens =  self._gen_blueprint_to_db(masked_query, key_query)
             return {
                 "tag": key_query,
                 "blueprint": blueprint,
-                "variables": variables
-                }
+                "inp_tokens": inp_tokens,
+                "out_tokens": out_tokens,
+                "variables": variables,
+                "score": 0.0,
+                "status": "MISS"
+            }
 
         # Convert from tensor
         key_vec = self.embedder.encode(key_query)
@@ -103,6 +107,10 @@ class PlanCacheEngine:
         matched_blueprint = self.blueprint_db[best_idx]
         max_score = scores[best_idx]
         self._similarity_scores.append(max_score)
+
+        # Default 0 if cache hit
+        inp_tokens = 0
+        out_tokens = 0
     
         # Cache miss check
         if max_score < self.HIT_THRESHOLD:
@@ -113,7 +121,8 @@ class PlanCacheEngine:
                 float(max_score),
                 self.HIT_THRESHOLD,
             )
-            matched_blueprint = self._gen_blueprint_to_db(masked_query,key_query)
+            matched_blueprint, inp_tokens, out_tokens = self._gen_blueprint_to_db(masked_query,key_query)
+            final_status = "MISS"
         else:
             self._cache_hits += 1
             self.hit_logger.info(
@@ -122,12 +131,17 @@ class PlanCacheEngine:
                 matched_blueprint.tag,
                 float(max_score),
             )
+            final_status = "HIT"
 
         return {
-            "tag": key_query,
-            "blueprint" : matched_blueprint,
-            "variables": variables,
-        }
+                "tag": key_query,
+                "blueprint": matched_blueprint,
+                "inp_tokens": inp_tokens,
+                "out_tokens": out_tokens,
+                "variables": variables,
+                "score": float(max_score),
+                "status": final_status     
+            }
 
 
     def add_blueprint(self, blueprint: AgentBlueprint) -> None:
@@ -188,7 +202,7 @@ class PlanCacheEngine:
 
         return masked_query, variables
     
-    def _gen_blueprint_to_db(self, masked_query: str, key: str) -> AgentBlueprint:
+    def _gen_blueprint_to_db(self, masked_query: str, key: str) -> tuple[AgentBlueprint, int, int]:
         """
         Return a fully reasoned blueprint object for a given masked query.
 
@@ -199,18 +213,15 @@ class PlanCacheEngine:
             key: the final key query we use as a tag in the cache
 
         Returns:
-            AgentBlueprint
+            tuple[AgentBlueprint, int, int]
         """
-        blueprint = json.loads(generate_new_blueprint(masked_query))
+        raw_json, in_tokens, out_tokens = generate_new_blueprint(masked_query)
+        blueprint = json.loads(raw_json)
             
-        # Add to DB 
-        agent_blueprint = AgentBlueprint(
-                tag = key,
-                steps = blueprint["steps"],
-            )
+        agent_blueprint = AgentBlueprint(tag=key, steps=blueprint["steps"])
         self.add_blueprint(agent_blueprint)
 
-        return agent_blueprint
+        return agent_blueprint, in_tokens, out_tokens
 
 
 

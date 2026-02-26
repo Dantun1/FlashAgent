@@ -3,4 +3,5 @@
 logs/
 eda/
 __pycache__/
+data/
 *.pyc

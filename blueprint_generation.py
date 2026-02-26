@@ -51,8 +51,12 @@ def generate_new_blueprint(masked_query):
     config = GenerationConfig(response_mime_type="application/json")
     
     response = model.generate_content(prompt, generation_config=config)
-    
-    return response.text
+
+    input_tokens = response.usage_metadata.prompt_token_count
+    output_tokens = response.usage_metadata.candidates_token_count
+
+    return response.text, input_tokens, output_tokens
+
 
 if __name__ == "__main__":
     print(generate_new_blueprint("what is the [year] [financial metric] (in [unit of financial quantity]) for [company]? give a response to the question by relying on the details shown in the [financial data document]."))
