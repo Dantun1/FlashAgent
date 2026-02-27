@@ -1,4 +1,5 @@
 import csv
+import os
 import time
 import json
 
@@ -16,6 +17,7 @@ def run_evaluation(test_queries, output_csv="./data/cache_telemetry.csv"):
         "is_correct_routing"
     ]
     
+    os.makedirs(os.path.dirname(output_csv), exist_ok=True)
     with open(output_csv, mode='w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
