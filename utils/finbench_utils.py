@@ -5,7 +5,11 @@ def load_finbench():
     return df
 
 
-
 def get_questions():
     df = load_finbench()
     return df["question"].to_list()
+
+
+def get_evidence(row_index: int) -> str:
+    df = load_finbench()
+    return df.iloc[row_index]["evidence"]

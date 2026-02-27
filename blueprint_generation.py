@@ -14,31 +14,42 @@ def generate_new_blueprint(masked_query):
     model = GenerativeModel("gemini-2.5-pro")
     
     prompt = f"""
-    You are an expert AI Systems Architect. 
-    Your job is to read a masked user query and design a step-by-step Execution Blueprint
-    that a separate, simpler "Worker" AI will follow to solve the problem. 
-    
+    You are an expert AI Systems Architect designing Execution Blueprints for a rigid, robotic 8B-parameter Worker AI.
+    Your job is to read a masked user query and output a strict, deterministic sequence of steps.
 
     AVAILABLE TOOLS FOR THE WORKER:
-    1. `fetch_document(company, year, target_metric)`: Retrieves the financial PDF. 'target_metric' MUST be the specific financial variable or line item needed (e.g., "Operating Income", "Capital Expenditure").
-    2. `calculate_math(expression)`: Computes math safely.
-    3. `submit_answer(final_value)`: Returns the final answer to the user and ends the loop.
+    1. `fetch_document(company, year, target_metric)`: Retrieves financial text.
+    2. `calculate_math(expression)`: Computes math (+, -, *, /) safely.
+    3. `submit_answer(final_value)`: Submits the final answer and terminates the loop.
 
-    STRICT RULES:
-    - The output must contain only useful words with no filler text introducing the steps.
-    - The steps must be completely GENERALIZED. Do not use specific company names or numbers. 
-    - Refer only to the variables present in the masked query (e.g., [ORG], [year], [metric]).
-    - Each step must describe the logic and explicitly state which tool the Worker should use.
-    - Output MUST be a valid JSON array of strings, where each string is one step.
+    STRICT BLUEPRINT RULES:
+    1. **Format:** Do not use conversational filler. Start every step with the required ACTION in brackets (e.g., `Step 1 [FETCH]: ...`).
+    2. **Variables:** You MUST use the exact bracketed variables from the query (e.g., `[company]`, `[year]`).
+    3. **Missing Metrics (The Analytical Rule):** If the query asks a conceptual question (e.g., "Is it capital intensive?", "What drove margins?"), the query will not contain a `[metric]` variable. You MUST explicitly hardcode the standard financial line items required to solve it (e.g., 'Property, Plant, and Equipment' and 'Total Assets') as the `target_metric` strings in the steps.
+    4. **The Synthesis Rule:** If the query asks a Yes/No or "Why" question, the final step MUST explicitly instruct the worker on how to interpret the math to form a sentence. Do NOT just submit a raw number.
 
---- FEW-SHOT EXAMPLE ---
-    USER MASKED QUERY: "Calculate the [metric] for [ORG] in [year]."
-    YOUR JSON OUTPUT:
+    --- FEW-SHOT EXAMPLE 1 (Direct Extraction) ---
+    MASKED QUERY: "what is the [year] [financial metric] for [company]?"
+    JSON OUTPUT:
     {{
         "steps": [
-            "Step 1: Invoke the `fetch_document` tool using [ORG], [year], and [metric] to get the financial context.",
-            "Step 2: Scan the retrieved document to find the numerical values that make up the [metric]. If a calculation is required, invoke the `calculate_math` tool with the formula.",
-            "Step 3: Invoke the `submit_answer` tool with the final extracted or calculated value."
+            "Step 1 [FETCH]: Invoke `fetch_document` with company=[company], year=[year], and target_metric=[financial metric].",
+            "Step 2 [EXTRACT]: Read the text output from Step 1 to locate the exact numerical value for [financial metric].",
+            "Step 3 [SUBMIT]: Invoke `submit_answer` with the extracted numerical value."
+        ]
+    }}
+
+--- FEW-SHOT EXAMPLE 2 (Qualitative/Derived Question) ---
+    MASKED QUERY: "is [company] a capital-intensive business based on [year] data?"
+    JSON OUTPUT:
+    {{
+        "steps": [
+            "Step 1 [FETCH]: Invoke `fetch_document` with company=[company], year=[year], and target_metric='Property, Plant, and Equipment'.",
+            "Step 2 [EXTRACT]: Read the text output from Step 1 and identify the exact numerical value for Property, Plant, and Equipment.",
+            "Step 3 [FETCH]: Invoke `fetch_document` with company=[company], year=[year], and target_metric='Total Assets'.",
+            "Step 4 [EXTRACT]: Read the text output from Step 3 and identify the exact numerical value for Total Assets.",
+            "Step 5 [CALCULATE]: Invoke `calculate_math` to divide the raw number extracted in Step 2 by the raw number extracted in Step 4 (e.g., '100 / 500').",
+            "Step 6 [SYNTHESIZE]: Analyze the calculated ratio. If the ratio is high (e.g., > 0.25), it is capital intensive. Invoke `submit_answer` with a full sentence stating YES or NO, including the calculated ratio as proof."
         ]
     }}
     ------------------------
