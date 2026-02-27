@@ -5,6 +5,7 @@ from sentence_transformers import SentenceTransformer
 from gliner import GLiNER
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
+from datetime import datetime
 
 
 from utils.log_utils import configure_cache_logger
@@ -40,8 +41,9 @@ class PlanCacheEngine:
         self.embedder = SentenceTransformer('all-MiniLM-L6-v2')
         self.blueprint_db: List[AgentBlueprint] = []
         self.vector_index = []
-        self.hit_logger = configure_cache_logger("cache_hits", "cache_hits.log")
-        self.miss_logger = configure_cache_logger("cache_misses", "cache_misses.log")
+        _dt = datetime.now().strftime("%m%d_%H%M")
+        self.hit_logger = configure_cache_logger("cache_hits", f"cache_hits_{_dt}.log")
+        self.miss_logger = configure_cache_logger("cache_misses", f"cache_misses_{_dt}.log")
         # Internal data trackers for performance evaluation
         self._similarity_scores = []
         self._cache_hits = 0
