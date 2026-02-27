@@ -159,7 +159,7 @@ class PlanCacheEngine:
         self.vector_index.append(vector)
 
     
-    def _build_task_prefix(self, query: str, needs_math: bool) -> str:
+    def _build_task_prefix(self, query: str, tool_signature: Dict[str, bool]) -> str:
         """Zero-latency heuristic to classify the expected output type."""
         query_lower = query.lower()
         
@@ -174,7 +174,7 @@ class PlanCacheEngine:
             prefix_parts.append("[COMPARISON]")
         else:
             prefix_parts.append("[EXTRACTION]")
-        if needs_math:
+        if tool_signature["needs_math"]:
             prefix_parts.append("[MATH OPERATION]")
 
         return " ".join(prefix_parts)
