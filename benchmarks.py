@@ -51,5 +51,5 @@ def run_evaluation(test_queries, output_csv="./data/cache_telemetry.csv"):
         print(f"[{result['status']}] {latency_ms:.2f}ms | Score: {result['score']:.3f} | {query[:40]}...")
 
 if __name__ == "__main__":
-    questions = get_questions()
+    questions = get_questions(51)
     run_evaluation(questions)

@@ -15,6 +15,7 @@ from blueprint_generation import generate_new_blueprint
 class AgentBlueprint:
     tag: str
     steps: List[str]
+    tool_signature: Dict[str, bool]
 
 
 class PlanCacheEngine:
@@ -73,8 +74,8 @@ class PlanCacheEngine:
         self._query_count += 1
         
         # Raw masked query
-        masked_query, variables = self._extract_and_mask(user_query)
-        task_type = self._get_task_type(user_query)
+        masked_query, variables, tool_signature = self._extract_and_mask(user_query)
+        task_type = self._build_task_prefix(user_query, tool_signature)
 
         # Key query for vector comparison
         key_query = f"{task_type} {masked_query}"
@@ -82,7 +83,7 @@ class PlanCacheEngine:
         # Instantly generate + return if cache empty
         if not self.vector_index:
             self.miss_logger.info("EMPTY_DB_MISS | key_query=%s", key_query)
-            blueprint, inp_tokens, out_tokens =  self._gen_blueprint_to_db(masked_query, key_query)
+            blueprint, inp_tokens, out_tokens =  self._gen_blueprint_to_db(masked_query, key_query, tool_signature=tool_signature)
             return {
                 "tag": key_query,
                 "blueprint": blueprint,
@@ -121,7 +122,7 @@ class PlanCacheEngine:
                 float(max_score),
                 self.HIT_THRESHOLD,
             )
-            matched_blueprint, inp_tokens, out_tokens = self._gen_blueprint_to_db(masked_query,key_query)
+            matched_blueprint, inp_tokens, out_tokens = self._gen_blueprint_to_db(masked_query,key_query, tool_signature=tool_signature)
             final_status = "MISS"
         else:
             self._cache_hits += 1
@@ -158,22 +159,27 @@ class PlanCacheEngine:
         self.vector_index.append(vector)
 
     
-    def _get_task_type(self, query: str) -> str:
+    def _build_task_prefix(self, query: str, needs_math: bool) -> str:
         """Zero-latency heuristic to classify the expected output type."""
         query_lower = query.lower()
         
+        prefix_parts = []
+
         # Keywords that strongly indicate text analysis
         explanation_keywords = ['why', 'drove', 'explain', 'reason', 'factors', 'impact', 'how did', 'cause']
         
         if any(kw in query_lower for kw in explanation_keywords):
-            return "[EXPLANATION]"
+            prefix_parts.append("[EXPLANATION]")
         elif "compare" in query_lower or "higher" in query_lower or "lower" in query_lower:
-            return "[COMPARISON]"
+            prefix_parts.append("[COMPARISON]")
         else:
-            return "[EXTRACTION]"
+            prefix_parts.append("[EXTRACTION]")
+        if needs_math:
+            prefix_parts.append("[MATH OPERATION]")
 
+        return " ".join(prefix_parts)
 
-    def _extract_and_mask(self, query: str) -> Tuple[str, Dict[str, str]]:
+    def _extract_and_mask(self, query: str) -> Tuple[str, Dict[str, str], Dict[str, bool]]:
         """
         Given a query, mask out the variables, return the masked query and variables dict.
 
@@ -192,17 +198,28 @@ class PlanCacheEngine:
 
 
         # TODO: figure out 20-30 optimal labels for extraction, need to be representative for all financebench
-        labels = ["financial metric",  "unit of financial quantity", "financial data document", "metric", "company", "year"] 
+        labels = ["financial metric",  "unit of financial quantity", 
+                  "financial data document", "metric", "company", "year",
+                  "mathematical operation"] 
         entities = self.ner.predict_entities(query, labels, threshold=0.3)
+
+        tool_signature = {
+            "needs_math": False
+        }
         
         for e in entities:
-            variables[e['label']] = e['text']
-            # not performant, just direct string replace for tsting
-            masked_query = masked_query.replace(e['text'].lower(), f"[{e['label']}]")
+            label = e['label']
+            text = e['text'].lower()
 
-        return masked_query, variables
+            if label == "mathematical operation":
+                tool_signature["needs_math"] = True
+                
+            masked_query = masked_query.replace(text, f"[{label}]")
+            
+
+        return masked_query, variables, tool_signature
     
-    def _gen_blueprint_to_db(self, masked_query: str, key: str) -> tuple[AgentBlueprint, int, int]:
+    def _gen_blueprint_to_db(self, masked_query: str, key: str, tool_signature: Dict[str, bool]) -> tuple[AgentBlueprint, int, int]:
         """
         Return a fully reasoned blueprint object for a given masked query.
 
@@ -218,7 +235,7 @@ class PlanCacheEngine:
         raw_json, in_tokens, out_tokens = generate_new_blueprint(masked_query)
         blueprint = json.loads(raw_json)
             
-        agent_blueprint = AgentBlueprint(tag=key, steps=blueprint["steps"])
+        agent_blueprint = AgentBlueprint(tag=key, steps=blueprint["steps"], tool_signature=tool_signature)
         self.add_blueprint(agent_blueprint)
 
         return agent_blueprint, in_tokens, out_tokens
