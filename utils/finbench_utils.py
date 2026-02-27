@@ -9,3 +9,8 @@ def load_finbench():
 def get_questions(quantity: int = None):
     df = load_finbench()
     return df["question"].head(quantity).to_list()
+
+
+def get_evidence(row_index: int) -> str:
+    df = load_finbench()
+    return df.iloc[row_index]["evidence"]
