@@ -5,9 +5,10 @@ def load_finbench():
     return df
 
 
-def get_questions():
+
+def get_questions(quantity: int = None):
     df = load_finbench()
-    return df["question"].to_list()
+    return df["question"].head(quantity).to_list()
 
 
 def get_evidence(row_index: int) -> str:
