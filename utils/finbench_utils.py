@@ -6,7 +6,7 @@ def load_finbench():
 
 
 
-def get_questions(quantity: int = None):
+def get_questions(quantity: int):
     df = load_finbench()
     return df["question"].head(quantity).to_list()
 

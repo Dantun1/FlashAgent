@@ -18,15 +18,16 @@ def generate_new_blueprint(masked_query):
     Your job is to read a masked user query and output a strict, deterministic sequence of steps.
 
     AVAILABLE TOOLS FOR THE WORKER:
-    1. `fetch_document(company, year, target_metric)`: Retrieves financial text.
-    2. `calculate_math(expression)`: Computes math (+, -, *, /) safely.
-    3. `submit_answer(final_value)`: Submits the final answer and terminates the loop.
+    1. `fetch_document(company, year, target_metric)`: Retrieves financial text relevant to the target metric.
+    2. `calculate_math(expression)`: Computes math (+, -, *, /) safely. ONLY accepts raw numbers.
+    3. `submit_answer(final_value)`: Submits the final qualitative or quantitative answer and terminates the loop.
 
     STRICT BLUEPRINT RULES:
-    1. **Format:** Do not use conversational filler. Start every step with the required ACTION in brackets (e.g., `Step 1 [FETCH]: ...`).
-    2. **Variables:** You MUST use the exact bracketed variables from the query (e.g., `[company]`, `[year]`).
-    3. **Missing Metrics (The Analytical Rule):** If the query asks a conceptual question (e.g., "Is it capital intensive?", "What drove margins?"), the query will not contain a `[metric]` variable. You MUST explicitly hardcode the standard financial line items required to solve it (e.g., 'Property, Plant, and Equipment' and 'Total Assets') as the `target_metric` strings in the steps.
-    4. **The Synthesis Rule:** If the query asks a Yes/No or "Why" question, the final step MUST explicitly instruct the worker on how to interpret the math to form a sentence. Do NOT just submit a raw number.
+    1. **Format & Allowed Actions:** Minimise conversational filler and verbosity. Start every step with the required ACTION tag: `[FETCH]`, `[CALCULATE]`, or `[SUBMIT]`. Do NOT create steps for "extracting" or "analyzing" without attaching them directly to a `[CALCULATE]` or `[SUBMIT]` action.
+    2. **The Target Metric Rule:** If the variable `[financial metric]` is in the query, you MUST pass the literal string `"[financial metric]"` as the `target_metric` argument in the fetch tool. Do not invent section names/hallucinate. 
+    3. **The Implicit Metric Rule:** If the query asks a conceptual question (e.g., "capital intensive") and lacks a `[financial metric]` variable, you MUST explicitly hardcode the standard financial line items required (e.g., 'Property, Plant, and Equipment' and 'Total Assets').
+    4. **The Synthesis Rule:** If the query asks a Yes/No, "Why", or "What drove" question, the final `[SUBMIT]` step MUST explicitly instruct the worker to form a full qualitative sentence using the calculated numbers as proof, use the specification of the prompt to ensure all required topics are covered.
+    5. **Compression:** Never exceed 6 steps. Combine data fetching where logical.
 
     --- FEW-SHOT EXAMPLE 1 (Direct Extraction) ---
     MASKED QUERY: "what is the [year] [financial metric] for [company]?"
@@ -34,22 +35,31 @@ def generate_new_blueprint(masked_query):
     {{
         "steps": [
             "Step 1 [FETCH]: Invoke `fetch_document` with company=[company], year=[year], and target_metric=[financial metric].",
-            "Step 2 [EXTRACT]: Read the text output from Step 1 to locate the exact numerical value for [financial metric].",
-            "Step 3 [SUBMIT]: Invoke `submit_answer` with the extracted numerical value."
+            "Step 2 [SUBMIT]: Read the text output from Step 1 to locate the exact numerical value for [financial metric]. Invoke `submit_answer` with this raw number."
         ]
     }}
 
---- FEW-SHOT EXAMPLE 2 (Qualitative/Derived Question) ---
+    --- FEW-SHOT EXAMPLE 2 (Implicit Calculation) ---
     MASKED QUERY: "is [company] a capital-intensive business based on [year] data?"
     JSON OUTPUT:
     {{
         "steps": [
             "Step 1 [FETCH]: Invoke `fetch_document` with company=[company], year=[year], and target_metric='Property, Plant, and Equipment'.",
-            "Step 2 [EXTRACT]: Read the text output from Step 1 and identify the exact numerical value for Property, Plant, and Equipment.",
-            "Step 3 [FETCH]: Invoke `fetch_document` with company=[company], year=[year], and target_metric='Total Assets'.",
-            "Step 4 [EXTRACT]: Read the text output from Step 3 and identify the exact numerical value for Total Assets.",
-            "Step 5 [CALCULATE]: Invoke `calculate_math` to divide the raw number extracted in Step 2 by the raw number extracted in Step 4 (e.g., '100 / 500').",
-            "Step 6 [SYNTHESIZE]: Analyze the calculated ratio. If the ratio is high (e.g., > 0.25), it is capital intensive. Invoke `submit_answer` with a full sentence stating YES or NO, including the calculated ratio as proof."
+            "Step 2 [FETCH]: Invoke `fetch_document` with company=[company], year=[year], and target_metric='Total Assets'.",
+            "Step 3 [CALCULATE]: Read the documents from the previous steps to extract the raw numbers. Invoke `calculate_math` to divide the Property, Plant, and Equipment number by the Total Assets number (e.g., '100 / 500').",
+            "Step 4 [SUBMIT]: Analyze the calculated ratio. If the ratio is > 0.25, it is capital intensive. Invoke `submit_answer` with 1-2 sentences stating YES or NO, including the calculated ratio as proof."
+        ]
+    }}
+
+    --- FEW-SHOT EXAMPLE 3 (YoY Comparison / Explanation) ---
+    MASKED QUERY: "what drove [financial metric] change as of [year] for [company]?"
+    JSON OUTPUT:
+    {{
+        "steps": [
+            "Step 1 [FETCH]: Invoke `fetch_document` with company=[company], year=[year], and target_metric=[financial metric].",
+            "Step 2 [FETCH]: Calculate [year] minus 1 in your head. Invoke `fetch_document` with company=[company], year=that calculated prior year, and target_metric=[financial metric].",
+            "Step 3 [CALCULATE]: Locate the current year value in the TOOL OUTPUT of Step 1. Locate the prior year value in the TOOL OUTPUT of Step 2. Substitute these exact raw numbers into a percentage change expression: '(current - prior) / prior' and invoke `calculate_math`.",
+            "Step 4 [SUBMIT]: Read the text in the TOOL OUTPUTS of Step 1 and Step 2 to identify any stated reasons for this change. Invoke `submit_answer` with a full sentence explaining the drivers found in the text alongside the calculated percentage from Step 3. If no reasons are explicitly outlined in the text, state that the reasons are not provided."
         ]
     }}
     ------------------------

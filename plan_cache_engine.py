@@ -218,7 +218,7 @@ class PlanCacheEngine:
             if label == "mathematical operation":
                 tool_signature["needs_math"] = True
                 
-            masked_query = masked_query.replace(text, f"[{label}]")
+            variables[label] = text
             
 
         return masked_query, variables, tool_signature

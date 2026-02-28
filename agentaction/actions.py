@@ -68,7 +68,6 @@ def execute_blueprint(blueprint_steps, variables, current_row_index=0, max_loops
             tool_name = action.get("tool")
             kwargs = action.get("kwargs", {})
             
-            print(action)
             print(f"Requested: {tool_name}({kwargs})")
             
             if tool_name not in AVAILABLE_TOOLS:
@@ -82,6 +81,7 @@ def execute_blueprint(blueprint_steps, variables, current_row_index=0, max_loops
                 except TypeError as e:
                     tool_result = f"TOOL ARGUMENT ERROR: Wrong arguments passed to {tool_name}. Details: {str(e)}"
 
+            print(tool_result)
             if tool_name == "submit_answer":
                 print(f"\nFINAL ANSWER: {tool_result}")
                 return tool_result
