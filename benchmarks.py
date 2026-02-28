@@ -10,7 +10,8 @@ def run_evaluation(test_queries, output_csv="./data/cache_telemetry.csv"):
     engine = PlanCacheEngine()
 
     fieldnames = [
-        "query_index", "original_query", "query_classification", "key_query", "matched_blueprint_tag", 
+        "query_index", "original_query", "query_classification", "key_query", 
+        "matched_blueprint_tag", "matched_blueprint_steps",
         "cosine_similarity", "cache_status", 
         "latency_ms", 
         "vertex_input_tokens", "vertex_output_tokens",
@@ -36,6 +37,7 @@ def run_evaluation(test_queries, output_csv="./data/cache_telemetry.csv"):
             "query_classification": result["tag"].split("]")[0] + "]",
             "key_query": result["tag"],
             "matched_blueprint_tag": result["blueprint"].tag,
+            "matched_blueprint_steps": result["blueprint"].steps,
             "cosine_similarity": round(result["score"], 4),
             "cache_status": result["status"],
             "latency_ms": round(latency_ms, 2),
