@@ -15,6 +15,7 @@ from blueprint_generation import generate_new_blueprint
 @dataclass
 class AgentBlueprint:
     tag: str
+    type: str
     steps: List[str]
     tool_signature: Dict[str, bool]
 
@@ -49,7 +50,7 @@ class PlanCacheEngine:
         self._cache_hits = 0
         self._query_count = 0
 
-        self.HIT_THRESHOLD = 0.8
+        self.HIT_THRESHOLD = 0.9
     
     @property
     def similarities(self):
@@ -85,7 +86,7 @@ class PlanCacheEngine:
         # Instantly generate + return if cache empty
         if not self.vector_index:
             self.miss_logger.info("EMPTY_DB_MISS | key_query=%s", key_query)
-            blueprint, inp_tokens, out_tokens =  self._gen_blueprint_to_db(masked_query, key_query, tool_signature=tool_signature)
+            blueprint, inp_tokens, out_tokens =  self._gen_blueprint_to_db(masked_query, key_query, task_type, tool_signature=tool_signature)
             return {
                 "tag": key_query,
                 "blueprint": blueprint,
@@ -102,13 +103,28 @@ class PlanCacheEngine:
             key_vec = key_vec.detach().cpu().numpy()
         key_vec = np.asarray(key_vec, dtype=np.float32).reshape(1, -1)
 
-        # Extract closest match blueprint with cosine similarity
-        db_vecs = np.array(self.vector_index)
-        scores = cosine_similarity(key_vec, db_vecs)[0]
-        best_idx = np.argmax(scores)
+        valid_indices = [i for i, bp in enumerate(self.blueprint_db) if bp.type == task_type]
+        
+        if not valid_indices:
+            self.miss_logger.info("TYPE_MISS | type=%s | key_query=%s", task_type, key_query)
+            blueprint, inp_tokens, out_tokens = self._gen_blueprint_to_db(masked_query, key_query, task_type, tool_signature)
+            return {
+                "tag": key_query,
+                "blueprint": blueprint,
+                "inp_tokens": inp_tokens,
+                "out_tokens": out_tokens,
+                "variables": variables,
+                "score": 0.0,
+                "status": "MISS"
+            }
+        # Extract closest match from the FILTERED vector space
+        valid_vecs = np.array([self.vector_index[i] for i in valid_indices])
+        scores = cosine_similarity(key_vec, valid_vecs)[0]
+        best_local_idx = np.argmax(scores)
+        best_idx = valid_indices[best_local_idx]
         
         matched_blueprint = self.blueprint_db[best_idx]
-        max_score = scores[best_idx]
+        max_score = scores[best_local_idx]
         self._similarity_scores.append(max_score)
 
         # Default 0 if cache hit
@@ -124,7 +140,7 @@ class PlanCacheEngine:
                 float(max_score),
                 self.HIT_THRESHOLD,
             )
-            matched_blueprint, inp_tokens, out_tokens = self._gen_blueprint_to_db(masked_query,key_query, tool_signature=tool_signature)
+            matched_blueprint, inp_tokens, out_tokens = self._gen_blueprint_to_db(masked_query,key_query, task_type,tool_signature)
             final_status = "MISS"
         else:
             self._cache_hits += 1
@@ -176,7 +192,20 @@ class PlanCacheEngine:
             prefix_parts.append("[COMPARISON]")
 
         if tool_signature["needs_math"]:
-            prefix_parts.append("[MATH OPERATION]")
+                    if "defined as:" in query_lower:
+                        prefix_parts.append("[MATH: CUSTOM_FORMULA]")
+
+                    elif "year-over-year" in query_lower or "yoy" in query_lower or "change" in query_lower:
+                        prefix_parts.append("[MATH: YOY_CHANGE]")
+
+                    elif "average" in query_lower:
+                        prefix_parts.append("[MATH: AVERAGE]")
+
+                    elif "ratio" in query_lower or "margin" in query_lower:
+                        prefix_parts.append("[MATH: RATIO]")
+
+                    else:
+                        prefix_parts.append("[MATH: GENERAL]")
 
         if not prefix_parts:
             prefix_parts.append("[EXTRACTION]")
@@ -224,7 +253,7 @@ class PlanCacheEngine:
 
         return masked_query, variables, tool_signature
     
-    def _gen_blueprint_to_db(self, masked_query: str, key: str, tool_signature: Dict[str, bool]) -> tuple[AgentBlueprint, int, int]:
+    def _gen_blueprint_to_db(self, masked_query: str, key: str, task_type: str, tool_signature: Dict[str, bool]) -> tuple[AgentBlueprint, int, int]:
         """
         Return a fully reasoned blueprint object for a given masked query.
 
@@ -240,7 +269,7 @@ class PlanCacheEngine:
         raw_json, in_tokens, out_tokens = generate_new_blueprint(masked_query)
         blueprint = json.loads(raw_json)
             
-        agent_blueprint = AgentBlueprint(tag=key, steps=blueprint["steps"], tool_signature=tool_signature)
+        agent_blueprint = AgentBlueprint(tag=key, type = task_type, steps=blueprint["steps"], tool_signature=tool_signature)
         self.add_blueprint(agent_blueprint)
 
         return agent_blueprint, in_tokens, out_tokens

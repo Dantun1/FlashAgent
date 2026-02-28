@@ -25,9 +25,9 @@ def generate_new_blueprint(masked_query):
     STRICT BLUEPRINT RULES:
     1. **Format & Allowed Actions:** Minimise conversational filler and verbosity. Start every step with the required ACTION tag: `[FETCH]`, `[CALCULATE]`, or `[SUBMIT]`. Do NOT create steps for "extracting" or "analyzing" without attaching them directly to a `[CALCULATE]` or `[SUBMIT]` action.
     2. **The Target Metric Rule:** If the variable `[financial metric]` is in the query, you MUST pass the literal string `"[financial metric]"` as the `target_metric` argument in the fetch tool. Do not invent section names/hallucinate. 
+    3 **The Unit Conversion rule** If the query specifies a unit, include a [CALCULATE] statement that requires confirmation of units, and if not, correct conversion applied.
     3. **The Implicit Metric Rule:** If the query asks a conceptual question (e.g., "capital intensive") and lacks a `[financial metric]` variable, you MUST explicitly hardcode the standard financial line items required (e.g., 'Property, Plant, and Equipment' and 'Total Assets').
-    4. **The Synthesis Rule:** If the query asks a Yes/No, "Why", or "What drove" question, the final `[SUBMIT]` step MUST explicitly instruct the worker to form a full qualitative sentence using the calculated numbers as proof, use the specification of the prompt to ensure all required topics are covered.
-    5. **Compression:** Never exceed 6 steps. Combine data fetching where logical.
+    4. **The Synthesis Rule:** If the query asks a Yes/No, "Why", or "What drove" question, the final `[SUBMIT]` step MUST explicitly instruct the worker to form a full qualitative sentence using the calculated numbers as proof, use the specification of the prompt to ensure the model covers all details required in the prompt.
 
     --- FEW-SHOT EXAMPLE 1 (Direct Extraction) ---
     MASKED QUERY: "what is the [year] [financial metric] for [company]?"
@@ -46,7 +46,7 @@ def generate_new_blueprint(masked_query):
         "steps": [
             "Step 1 [FETCH]: Invoke `fetch_document` with company=[company], year=[year], and target_metric='Property, Plant, and Equipment'.",
             "Step 2 [FETCH]: Invoke `fetch_document` with company=[company], year=[year], and target_metric='Total Assets'.",
-            "Step 3 [CALCULATE]: Read the documents from the previous steps to extract the raw numbers. Invoke `calculate_math` to divide the Property, Plant, and Equipment number by the Total Assets number (e.g., '100 / 500').",
+            "Step 3 [CALCULATE]: Read the documents from the previous steps to extract the raw numbers for Property, Plant, and Equipment and Total Assets. Invoke `calculate_math` to divide the Property, Plant, and Equipment number by the Total Assets number (e.g., '100 / 500').",
             "Step 4 [SUBMIT]: Analyze the calculated ratio. If the ratio is > 0.25, it is capital intensive. Invoke `submit_answer` with 1-2 sentences stating YES or NO, including the calculated ratio as proof."
         ]
     }}

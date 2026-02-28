@@ -24,7 +24,7 @@ def fetch_document(company: str, year: str, target_metric: str, current_row_inde
         # Fetch evidence for the query
 
         evidence_list = current_row["evidence"] 
-        evidence_text = evidence_list[0]["evidence_text_full_page"]
+        evidence_text = evidence_list[0]["evidence_text"]
         cleaned_text = re.sub(r'\n\s*\n', '\n', evidence_text)
         cleaned_text = re.sub(r' \s+', ' ', cleaned_text)
         
