@@ -174,10 +174,12 @@ class PlanCacheEngine:
             prefix_parts.append("[EXPLANATION]")
         elif "compare" in query_lower or "higher" in query_lower or "lower" in query_lower:
             prefix_parts.append("[COMPARISON]")
-        else:
-            prefix_parts.append("[EXTRACTION]")
+
         if tool_signature["needs_math"]:
             prefix_parts.append("[MATH OPERATION]")
+
+        if not prefix_parts:
+            prefix_parts.append("[EXTRACTION]")
 
         return " ".join(prefix_parts)
 
