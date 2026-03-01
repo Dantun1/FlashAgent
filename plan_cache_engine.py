@@ -1,11 +1,12 @@
 import json
 from dataclasses import dataclass
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Mapping
 from sentence_transformers import SentenceTransformer
 from gliner import GLiNER
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 from datetime import datetime
+from collections import defaultdict
 
 
 from utils.log_utils import configure_cache_logger
@@ -185,10 +186,12 @@ class PlanCacheEngine:
 
         # Keywords that strongly indicate text analysis
         explanation_keywords = ['why', 'drove', 'explain', 'reason', 'factors', 'impact', 'how did', 'cause']
-        
+        comparison_keywords = ["higher", "lower", "larger", "smaller", "largest", "smallest", "lowest", "highest"]
+
+
         if any(kw in query_lower for kw in explanation_keywords):
             prefix_parts.append("[EXPLANATION]")
-        elif "compare" in query_lower or "higher" in query_lower or "lower" in query_lower:
+        elif any(kw in query_lower for kw in comparison_keywords):
             prefix_parts.append("[COMPARISON]")
 
         if tool_signature["needs_math"]:
@@ -212,7 +215,7 @@ class PlanCacheEngine:
 
         return " ".join(prefix_parts)
 
-    def _extract_and_mask(self, query: str) -> Tuple[str, Dict[str, str], Dict[str, bool]]:
+    def _extract_and_mask(self, query: str) -> Tuple[str, Mapping[str, str], Mapping[str, bool]]:
         """
         Given a query, mask out the variables, return the masked query and variables dict.
 
@@ -226,7 +229,7 @@ class PlanCacheEngine:
 
         Uses GLiNER entity recognition.
         """
-        variables = {}
+        variables = defaultdict(list)
         masked_query = query.lower() 
 
 
@@ -247,11 +250,11 @@ class PlanCacheEngine:
             if label == "mathematical operation":
                 tool_signature["needs_math"] = True
 
-            variables[label] = text
+            variables[label].append(text)
             masked_query = masked_query.replace(text, f"[{label}]")
             
 
-        return masked_query, variables, tool_signature
+        return masked_query, variables, tool_signature 
     
     def _gen_blueprint_to_db(self, masked_query: str, key: str, task_type: str, tool_signature: Dict[str, bool]) -> tuple[AgentBlueprint, int, int]:
         """

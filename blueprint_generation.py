@@ -18,7 +18,7 @@ def generate_new_blueprint(masked_query):
     Your job is to read a masked user query and output a strict, deterministic sequence of steps.
 
     AVAILABLE TOOLS FOR THE WORKER:
-    1. `fetch_document(company, year, target_metric)`: Retrieves financial text relevant to the target metric.
+    1. `fetch_document(company, years: list, target_metrics)`: Retrieves financial text relevant to a company for a given set of year for the given set of metrics.
     2. `calculate_math(expression)`: Computes math (+, -, *, /) safely. ONLY accepts raw numbers.
     3. `submit_answer(final_value)`: Submits the final qualitative or quantitative answer and terminates the loop.
 
@@ -39,30 +39,20 @@ def generate_new_blueprint(masked_query):
         ]
     }}
 
-    --- FEW-SHOT EXAMPLE 2 (Implicit Calculation) ---
-    MASKED QUERY: "is [company] a capital-intensive business based on [year] data?"
+    ------------------------
+
+        --- FEW-SHOT EXAMPLE 2 (Multi-year extraction) ---
+    MASKED QUERY: "[EXTRACTION] what are major acquisitions that [company] has done in [year], [year] and [year]?"
     JSON OUTPUT:
     {{
         "steps": [
-            "Step 1 [FETCH]: Invoke `fetch_document` with company=[company], year=[year], and target_metric='Property, Plant, and Equipment'.",
-            "Step 2 [FETCH]: Invoke `fetch_document` with company=[company], year=[year], and target_metric='Total Assets'.",
-            "Step 3 [CALCULATE]: Read the documents from the previous steps to extract the raw numbers for Property, Plant, and Equipment and Total Assets. Invoke `calculate_math` to divide the Property, Plant, and Equipment number by the Total Assets number (e.g., '100 / 500').",
-            "Step 4 [SUBMIT]: Analyze the calculated ratio. If the ratio is > 0.25, it is capital intensive. Invoke `submit_answer` with 1-2 sentences stating YES or NO, including the calculated ratio as proof."
+            "Step 1 [FETCH]: Invoke `fetch_document` with company=[company], years=[year], and target_metrics=['Acquisitions'].", 
+            'Step 2 [SUBMIT]: Read the text from the TOOL OUTPUTS of the previous step. For each year listed in VARIABLES, identify and list the major acquisitions mentioned. Invoke `submit_answer` with a detailed description of the acqusitions, if any.'
         ]
     }}
 
-    --- FEW-SHOT EXAMPLE 3 (YoY Comparison / Explanation) ---
-    MASKED QUERY: "what drove [financial metric] change as of [year] for [company]?"
-    JSON OUTPUT:
-    {{
-        "steps": [
-            "Step 1 [FETCH]: Invoke `fetch_document` with company=[company], year=[year], and target_metric=[financial metric].",
-            "Step 2 [FETCH]: Calculate [year] minus 1 in your head. Invoke `fetch_document` with company=[company], year=that calculated prior year, and target_metric=[financial metric].",
-            "Step 3 [CALCULATE]: Locate the current year value in the TOOL OUTPUT of Step 1. Locate the prior year value in the TOOL OUTPUT of Step 2. Substitute these exact raw numbers into a percentage change expression: '(current - prior) / prior' and invoke `calculate_math`.",
-            "Step 4 [SUBMIT]: Read the text in the TOOL OUTPUTS of Step 1 and Step 2 to identify any stated reasons for this change. Invoke `submit_answer` with a full sentence explaining the drivers found in the text alongside the calculated percentage from Step 3. If no reasons are explicitly outlined in the text, state that the reasons are not provided."
-        ]
-    }}
     ------------------------
+    
 
     ACTUAL MASKED QUERY TO PROCESS: "{masked_query}"
     YOUR JSON OUTPUT:

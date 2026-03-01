@@ -5,9 +5,9 @@ from utils.finbench_utils import load_finbench
 financebench_data = load_finbench()
 
 
-def fetch_document(company: str, year: str, target_metric: str, current_row_index: int = 0) -> str:
+def fetch_document(company: str, years: list, target_metrics: list, current_row_index: int = 0) -> str:
 
-    print(f"Fetching document for {company} | {year} | {target_metric}")
+    print(f"Fetching document for {company} | {years} | {target_metrics}")
     
     try:
         current_row = financebench_data.iloc[current_row_index]
