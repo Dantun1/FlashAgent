@@ -12,23 +12,25 @@ def fetch_document(company: str, years: list, target_metrics: list, current_row_
     try:
         current_row = financebench_data.iloc[current_row_index]
 
-
         gt_company = str(current_row.get("company", "")).lower()
-        gt_year = str(current_row.get("financial_year", "")).lower()
-        
-        # Check for expected company
+
         if company.lower() not in gt_company and gt_company not in company.lower():
             return f"ERROR: Database lookup failed. No filings found for company '{company}'."
-            
-        
-        # Fetch evidence for the query
 
         evidence_list = current_row["evidence"] 
-        evidence_text = evidence_list[0]["evidence_text"]
-        cleaned_text = re.sub(r'\n\s*\n', '\n', evidence_text)
-        cleaned_text = re.sub(r' \s+', ' ', cleaned_text)
         
-        return f"DOCUMENT CONTEXT (Page {evidence_list[0]['evidence_page_num']}):\n{cleaned_text}"
+        combined_context = ""
+        
+        for ev in evidence_list:
+            page_num = ev.get("evidence_page_num", "Unknown")
+            raw_text = ev.get("evidence_text_full_page", "")
+
+            cleaned_text = re.sub(r'\n\s*\n', '\n', raw_text)
+            cleaned_text = re.sub(r' \s+', ' ', cleaned_text)
+            
+            combined_context += f"--- DOCUMENT CONTEXT (Page {page_num}) ---\n{cleaned_text}\n\n"
+            
+        return combined_context.strip()
         
     except Exception as e:
         return f"ERROR FETCHING DOCUMENT: {str(e)}"

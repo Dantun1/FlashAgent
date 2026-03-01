@@ -45,7 +45,7 @@ def generate_new_blueprint(masked_query):
     MASKED QUERY: "[EXTRACTION] what are major acquisitions that [company] has done in [year], [year] and [year]?"
     JSON OUTPUT:
     {{
-        "steps": [
+        steps = [
             "Step 1 [FETCH]: Invoke `fetch_document` with company=[company], years=[year], and target_metrics=['Acquisitions'].", 
             'Step 2 [SUBMIT]: Read the text from the TOOL OUTPUTS of the previous step. For each year listed in VARIABLES, identify and list the major acquisitions mentioned. Invoke `submit_answer` with a detailed description of the acqusitions, if any.'
         ]

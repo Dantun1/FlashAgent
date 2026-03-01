@@ -13,26 +13,32 @@ AVAILABLE_TOOLS = {
     "submit_answer": submit_answer
 }
 
-SYSTEM_PROMPT = """You are a JSON-only financial execution agent. Follow the BLUEPRINT exacty.
-
-RULES:
-1. EXHAUSTIVE: If VARIABLES contains a list, process every single item. If data is missing, explicitly state "No data found".
-2. RAW NUMBERS: `calculate_math` requires ONLY numbers (e.g., '10/2'). No text or $ symbols.
-3. FINAL ANSWER: `submit_answer` must include the actual calculated numbers and entity names, not placeholders.
+SYSTEM_PROMPT = f"""You are a financial execution agent. 
+You have been provided TOOLS and a STRICT execution blueprint. You must follow the steps exactly and 
+use the provided variable VALUES to generate TOOL CALLS by filling in the placeholders in the blueprint. Your output must obey
+this schema:
 
 SCHEMA (You must output ONLY this exact JSON structure):
-{
+{{
     "thought": "Briefly explain the step",
     "tool": "tool_name",
-    "kwargs": {"arg_name": "arg_value"}
-}
+    "kwargs": {{"arg_name": "arg_value"}}
+}}
 
-TOOLS:
-1. fetch_document(company, years, target_metrics)
-2. calculate_math(expression)
-3. submit_answer(final_value)
 
-BLUEPRINT:\n
+STRICT RULES:
+
+
+1. When a document is fetched, carefully scan the text for SPECIFIED INFORMATION. 
+2. Financial terms may be synonyms (e.g., "Capital Expenditure" is often listed as "Purchases of property, plant and equipment").
+3. Do not include markdown blocks or any other text. Just the JSON.
+4. SYNTHESIS RULE: When submitting your final answer, you MUST substitute the actual numerical values you calculated into your sentence. NEVER output placeholder text like "[insert value]". Read your previous tool outputs and use the actual numbers.
+
+AVAILABLE TOOLS:
+1. fetch_document(company, years, target_metrics) : Fetches specified document portion given a company, list of years and list of target metrics
+2. calculate_math(expression) : ONLY use for arithmetic (+, -, *, /) with RAW NUMBERS (e.g., "1500 / 10"). STRICTLY PROHIBITED: Do not put text, variables, conditions, or function calls (like fetch_document) inside the expression.
+3. submit_answer(final_value) : : Submits the final answer. 'final_value' MUST be a single, flat text string containing either the qualitative or numeric response IN DETAIL. 
+BLUEPRINT STEPS:\n
 """
 
 
@@ -46,7 +52,9 @@ def execute_blueprint(blueprint_steps, variables, current_row_index=0, max_loops
     # Fed to the agent, constant across all ReAct loop
     # System, blueprint steps in order
     # If variables are in list form, try adjusting system prompt for in order use of the list, otherwise resort to variable substitution.
-    static_prompt = SYSTEM_PROMPT + "\n".join([s for s in blueprint_steps]) + "\nVARIABLES:\n" + str(variables.items())
+    vars_string = json.dumps(dict(variables), indent=2)
+
+    static_prompt = SYSTEM_PROMPT + "\n".join([s for s in blueprint_steps]) + "\nVARIABLES:\n" + vars_string + "ACTION FOR STEP 1:"
     print(static_prompt)
     messages = [{"role": "system", "content": static_prompt}]
 
