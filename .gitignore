@@ -5,3 +5,4 @@ eda/
 __pycache__/
 data/
 *.pyc
+plots/

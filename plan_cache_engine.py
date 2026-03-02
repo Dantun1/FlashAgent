@@ -34,13 +34,15 @@ class PlanCacheEngine:
     Attributes:
         ner: GLiNER model used for entity extraction.
         embedder: Sentence transformer used to generate embeddings.
+        cache_enabled: When False, blueprints are never stored (baseline mode).
         blueprint_db: In-memory list of stored blueprints.
         vector_index: In-memory list of embedding vectors aligned with
             ``blueprint_db``.
     """
-    def __init__(self):
+    def __init__(self, cache_enabled: bool = True):
         self.ner = GLiNER.from_pretrained("urchade/gliner_medium-v2.1")
         self.embedder = SentenceTransformer('all-MiniLM-L6-v2')
+        self.cache_enabled = cache_enabled
         self.blueprint_db: List[AgentBlueprint] = []
         self.vector_index = []
         _dt = datetime.now().strftime("%m%d_%H%M")
@@ -173,6 +175,8 @@ class PlanCacheEngine:
         Returns:
             None
         """
+        if not self.cache_enabled:
+            return
         vector = self.embedder.encode(blueprint.tag)
         self.blueprint_db.append(blueprint)
         self.vector_index.append(vector)
