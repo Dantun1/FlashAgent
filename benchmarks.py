@@ -1,3 +1,4 @@
+import argparse
 import csv
 import os
 import time
@@ -6,8 +7,8 @@ import json
 from plan_cache_engine import PlanCacheEngine
 from utils.finbench_utils import get_questions
 
-def run_evaluation(test_queries, output_csv="./data/cache_telemetry.csv"):
-    engine = PlanCacheEngine()
+def run_evaluation(test_queries, output_csv="./data/cache_telemetry.csv", cache_enabled=True):
+    engine = PlanCacheEngine(cache_enabled=cache_enabled)
 
     fieldnames = [
         "query_index", "original_query", "query_classification", "key_query", 
@@ -53,5 +54,11 @@ def run_evaluation(test_queries, output_csv="./data/cache_telemetry.csv"):
         print(f"[{result['status']}] {latency_ms:.2f}ms | Score: {result['score']:.3f} | {query[:40]}...")
 
 if __name__ == "__main__":
-    questions = get_questions(quantity=150)
-    run_evaluation(questions)
+    parser = argparse.ArgumentParser(description="Run plan cache evaluation benchmark.")
+    parser.add_argument("--baseline", action="store_true", help="Disable cache (baseline mode: every query pays full generation cost).")
+    parser.add_argument("--output", default="./data/cache_telemetry.csv", help="Path for the output CSV.")
+    parser.add_argument("--n", type=int, default=150, help="Number of queries to evaluate.")
+    args = parser.parse_args()
+
+    questions = get_questions(quantity=args.n)
+    run_evaluation(questions, output_csv=args.output, cache_enabled=not args.baseline)
