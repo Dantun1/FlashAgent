@@ -60,7 +60,7 @@ numpy==2.4.2
 onnxruntime==1.24.1
 openai==2.23.0
 packaging==26.0
-pandas==3.0.1
+pandas==2.3.3
 pillow==12.1.1
 propcache==0.4.1
 proto-plus==1.27.1
@@ -105,3 +105,5 @@ typing_extensions==4.15.0
 urllib3==2.6.3
 websockets==15.0.1
 yarl==1.22.0
+plotly
+streamlit==1.54.0
