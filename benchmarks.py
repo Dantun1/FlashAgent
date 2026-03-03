@@ -5,7 +5,7 @@ import time
 import json
 
 from plan_cache_engine import PlanCacheEngine
-from utils.finbench_utils import get_questions
+from utils.finbench_utils import get_questions, get_custom_questions
 
 def run_evaluation(test_queries, output_csv="./data/cache_telemetry.csv", cache_enabled=True):
     engine = PlanCacheEngine(cache_enabled=cache_enabled)
@@ -56,9 +56,16 @@ def run_evaluation(test_queries, output_csv="./data/cache_telemetry.csv", cache_
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run plan cache evaluation benchmark.")
     parser.add_argument("--baseline", action="store_true", help="Disable cache (baseline mode: every query pays full generation cost).")
-    parser.add_argument("--output", default="./data/cache_telemetry.csv", help="Path for the output CSV.")
-    parser.add_argument("--n", type=int, default=150, help="Number of queries to evaluate.")
+    parser.add_argument("--custom", action="store_true", help="Use custom_dataset.xlsx instead of FinBench.")
+    parser.add_argument("--output", default=None, help="Path for the output CSV.")
+    parser.add_argument("--n", type=int, default=150, help="Number of queries to evaluate (ignored when --custom is set).")
     args = parser.parse_args()
 
-    questions = get_questions(quantity=args.n)
-    run_evaluation(questions, output_csv=args.output, cache_enabled=not args.baseline)
+    if args.custom:
+        questions = get_custom_questions()
+        output_csv = args.output or "./data/custom_telemetry.csv"
+    else:
+        questions = get_questions(quantity=args.n)
+        output_csv = args.output or "./data/cache_telemetry.csv"
+
+    run_evaluation(questions, output_csv=output_csv, cache_enabled=not args.baseline)
