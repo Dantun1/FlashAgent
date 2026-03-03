@@ -4,4 +4,5 @@ logs/
 eda/
 __pycache__/
 data/
+answers.csv
 *.pyc
