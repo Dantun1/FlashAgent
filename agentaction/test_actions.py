@@ -1,31 +1,57 @@
 import csv
+import ast
+import time
 from utils.finbench_utils import get_questions
-from plan_cache_engine import PlanCacheEngine, AgentBlueprint
-from agentaction.actions import execute_blueprint
+from agentaction.fin_agent import FinancialAgent
+
+def load_cache_from_csv(csv_path: str) -> dict:
+    """Reads the CSV and builds the prefill dictionary."""
+    prefill_data = {}
+    
+    with open(csv_path, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            # Skip empty rows or cache misses
+            if not row.get('matched_blueprint_steps'):
+                continue
+
+            masked_query = row['key_query']
+            raw_steps_string = row['matched_blueprint_steps']
+
+            # Safely parse the stringified list back into a real Python list
+            try:
+                steps_list = ast.literal_eval(raw_steps_string)
+            except (ValueError, SyntaxError):
+                steps_list = [raw_steps_string] # Fallback just in case
+
+            # Map the raw query to the blueprint steps
+            prefill_data[masked_query] = steps_list
+
+    return prefill_data
 
 if __name__ == "__main__":
-    engine = PlanCacheEngine()
+    print("[SYSTEM] Loading cache prefill data from CSV...")
+    prefill_dict = load_cache_from_csv("data/cache_telemetry_full.csv") 
+    print(f"[SYSTEM] Successfully parsed {len(prefill_dict)} blueprints for prefilling.")
+
+    print("[SYSTEM] Booting Financial Agent and warming vector cache...")
+    agent = FinancialAgent(cache_prefill_info=prefill_dict)
+    
     questions = get_questions(150)
 
-    columns = ["question", "blueprint", "variables", "answer"]
-    with open("answers.csv","a") as csvfile:
-        writer = csv.DictWriter(csvfile, columns)
-        for idx in range(150):
-            bp = engine.retrieve_plan(questions[idx])
-            result = execute_blueprint(bp["blueprint"].steps, bp["variables"], current_row_index=idx, max_loops=20)
-            writer.writerow({"question": questions[idx],"blueprint" : bp["blueprint"].steps, "variables":bp["variables"], "answer":result})
+    for i in range(141, 150):
+        question = questions[i]
+        print(f"\n=======================")
+        print(f"Processing Question {i}")
+        print(f"=======================")
+        start_time = time.perf_counter()
+        answer = agent.run(question, i)
+        end_time = time.perf_counter()
 
-    # acquiq = questions[52]
-    # masked_acquiq = "[EXTRACTION] among operations, investing, and financing activities, which brought in the most (or lost the least) [financial metric] for [company] in [year]?"
-    # vars = engine._extract_and_mask(acquiq)[1]
-    
-    # print(masked_acquiq)
-    # print(vars)
-    # steps = [
-    #     "Step 1 [FETCH]: Invoke `fetch_document` with company=[company], years=[year], and target_metrics='[financial metric]'.", 
-    #     'Step 3 [SUBMIT]: Read the TOOL OUTPUT of Step 1 to locate the three separate numerical values for [financial metric] from operating, investing, and financing activities. Compare these three numbers to identify which activity has the highest value (i.e., the most positive or least negative number). Invoke `submit_answer` with a full sentence stating [company] brought in the most or lost the least[financial metric] through the identified activity, including the name of the activity and its corresponding value with CORRECT UNITS.'  
-    # ]
-    
-    # execute_blueprint(steps, vars, 52, 20)
+        time_taken = round(end_time-start_time,2)
+        print(f"\nQ: {question}\nA: {answer} in {time_taken:.3f} seconds")
 
+        with open("data/time_stats.csv", "a") as csvfile:
+            writer = csv.DictWriter(csvfile, ["question","answer","time_taken"])
+            writer.writerow({"question":question, "answer": answer, "time_taken": time_taken})
 
