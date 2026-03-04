@@ -26,8 +26,8 @@ st.set_page_config(page_title="APC Dashboard", page_icon="⚡", layout="wide")
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.header("Data")
-    baseline_path = st.text_input("Baseline CSV", "data/baseline_custom.csv")
-    cached_path   = st.text_input("APC CSV",      "data/apc_custom.csv")
+    baseline_path = st.text_input("Baseline CSV", "data/base_custom_telemetry.csv")
+    cached_path   = st.text_input("APC CSV",      "data/apc_custom_telemetry.csv")
     if st.button("↻ Refresh now", use_container_width=True):
         st.cache_data.clear()
 

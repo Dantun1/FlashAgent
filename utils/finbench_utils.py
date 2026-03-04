@@ -7,14 +7,14 @@ def load_finbench():
 
 
 
-def get_questions(quantity: int):
+def get_questions(quantity: int = None) -> list[str]:
     df = load_finbench()
     return df["question"].head(quantity).to_list()
 
-def get_custom_questions():
-    xlsx_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "custom_dataset.xlsx")
-    df = pd.read_excel(xlsx_path)
-    questions = df.loc[df["Variation Type"].notna(), "Question"].tolist()
+def get_custom_questions(quantity: int = None) -> list[str]:
+    csv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "variable_tweak_data.csv")
+    df = pd.read_csv(csv_path)
+    questions = df["Question"].head(quantity).tolist()
     return questions
 
 def get_evidence(row_index: int) -> str:
