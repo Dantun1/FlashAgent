@@ -21,6 +21,8 @@ class AgentBlueprint:
     tool_signature: Dict[str, bool]
 
 
+
+
 class PlanCacheEngine:
     """
     Vector-based blueprint retrieval engine.
@@ -180,6 +182,24 @@ class PlanCacheEngine:
         vector = self.embedder.encode(blueprint.tag)
         self.blueprint_db.append(blueprint)
         self.vector_index.append(vector)
+
+    def prefill_cache(self, masked_queries: list[str], blueprints: list[str]) -> None:
+        if len(masked_queries) != len(blueprints):
+            raise ValueError("Must supply same amount of queries and blueprints for prefill")
+        
+        for q, bp in zip(masked_queries,blueprints):
+            self._create_blueprint_from_strings(q, bp)
+
+        
+    def _create_blueprint_from_strings(self, query: str, blueprint: str) -> None:
+        masked_query, _, tool_signature = self._extract_and_mask(query)
+        prefix = self._build_task_prefix(query, tool_signature)
+
+        key_query = f"{prefix}{masked_query}"
+
+        blueprint = AgentBlueprint(key_query, prefix, blueprint, tool_signature)
+        self.add_blueprint(blueprint)
+
 
     
     def _build_task_prefix(self, query: str, tool_signature: Dict[str, bool]) -> str:

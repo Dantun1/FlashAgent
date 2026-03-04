@@ -1,5 +1,6 @@
 import json
 import time
+import csv
 import re
 from openai import OpenAI
 from agentaction.tools import fetch_document, calculate_math, submit_answer
@@ -40,6 +41,7 @@ AVAILABLE TOOLS:
 BLUEPRINT STEPS:\n"""
 
 
+
 def call_minion_extractor(document_text, company, years, target_metrics, blueprint):
     """
     isolated/stateless document data extractor call rto pass data to the actual actor model
@@ -72,26 +74,70 @@ RULES:
     
     return response.choices[0].message.content
 
+kv_tracking_cols = [
+                    "idx", 
+                    "tool_call_num",
+                    "total_tokens",
+                    "cached_tokens",
+                    "prefill_tokens"
+    ]
+
 
 def execute_blueprint(blueprint_steps, variables, current_row_index=0, max_loops=5):
     """
     Takes the cached steps, adapts them with variables, and loops the LLM through the tools.
     """
+    ##
+    # 1. BLUEPRINT ADAPTATION (Stateful Sequential Interpolation)
     # adapted_steps = []
-    
-
+    #
+    # # Track how many times we've used each label across the ENTIRE blueprint
+    # label_counters = {label: 0 for label in variables.keys()}
+    #
+    # # Extract the base year as an integer if it exists (e.g., "fy2022" -> 2022)
+    # base_year = None
+    # if "year" in variables and variables["year"]:
+    #     for y in variables["year"]:
+    #         match = re.search(r'\d{4}', str(y))
+    #         if match:
+    #             base_year = int(match.group())
+    #             break
+    #
     # for step in blueprint_steps:
     #     adapted_step = step
     #
-    #
-    #     for label, val_list in variables.items():
-    #         if val_list:
-                # adapted_step = adapted_step.replace(f"[{label}]", str(val_list[0]))
+    #     # A. Resolve relative years like [year-1], [year-2] dynamically
+    #     if base_year is not None:
+    #         def replace_relative_year(m):
+        #         offset = int(m.group(1))
+        #         return str(base_year - offset)
+        #
+        #     adapted_step = re.sub(r'\[year\s*-\s*(\d+)\]', replace_relative_year, adapted_step, flags=re.IGNORECASE)
+        #
+        # # B. Inject standard variables sequentially
+        # for label, val_list in variables.items():
+        #     if not val_list:
+        #         continue
+        #
+            # # 1. Handle explicit numbered placeholders (e.g., [financial metric 1])
+            # for i, val in enumerate(val_list):
+            #     adapted_step = adapted_step.replace(f"[{label} {i+1}]", str(val))
+            #
+            # # 2. Sequential replacement for generic placeholders (e.g., [financial metric])
+            # tag = f"[{label}]"
+            # while tag in adapted_step:
+            #     # Use modulo to cycle through the list safely if there are more tags than values
+            #     idx = label_counters[label] % len(val_list)
+            #     current_val = str(val_list[idx])
+                
+                # Replace ONLY the FIRST occurrence in the string
+                # adapted_step = adapted_step.replace(tag, current_val, 1)
+                
+                # Increment the counter so the next occurrence gets the next value!
+                # label_counters[label] += 1
                 
         # adapted_steps.append(adapted_step)
-
-    # print(adapted_steps)
-
+    ##
     static_prompt = SYSTEM_PROMPT + "\n".join(blueprint_steps) +"\nVARIABLES:\n" +json.dumps(dict(variables), indent = 2)+"\n\nACTION FOR STEP 1:"
     messages = [{"role": "system", "content": static_prompt}]
 
@@ -105,6 +151,19 @@ def execute_blueprint(blueprint_steps, variables, current_row_index=0, max_loops
         )
         
         llm_output = response.choices[0].message.content
+        usage = response.usage
+        total_output = usage.prompt_tokens
+
+      
+        cached_tokens = usage.prompt_tokens_details.cached_tokens
+        actual_prefill = total_output - cached_tokens
+
+        with open("kv_tracking.csv", "a") as csvfile:
+            writer = csv.DictWriter(csvfile,kv_tracking_cols)
+            writer.writerow({"idx":current_row_index,"tool_call_num":loop_idx, "total_tokens":total_output, "cached_tokens":cached_tokens, "prefill_tokens": actual_prefill}) 
+        
+
+
         messages.append({"role": "assistant", "content": llm_output})
         
         try:
@@ -140,7 +199,6 @@ def execute_blueprint(blueprint_steps, variables, current_row_index=0, max_loops
                 print(f"\nFINAL ANSWER: {tool_result}")
                 return tool_result
             
-             #Feed only the short Minion output back to the Planner
             messages.append({
                 "role": "user", 
                 "content": f"TOOL OUTPUT:\n{tool_result}\n\nProceed to the exact next step in the blueprint."
