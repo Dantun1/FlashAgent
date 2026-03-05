@@ -7,3 +7,5 @@ data/
 *.pyc
 plots/
 answers.csv
+app.py
+visualise.py
