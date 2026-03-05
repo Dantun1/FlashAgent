@@ -10,7 +10,7 @@ from collections import defaultdict
 
 
 from utils.log_utils import configure_cache_logger
-from blueprint_generation import generate_new_blueprint
+from cachingengine.blueprint_generation import generate_new_blueprint
 
 
 @dataclass

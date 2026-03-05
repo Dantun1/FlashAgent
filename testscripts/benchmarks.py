@@ -4,7 +4,7 @@ import os
 import time
 import json
 
-from plan_cache_engine import PlanCacheEngine
+from cachingengine.plan_cache_engine import PlanCacheEngine
 from utils.finbench_utils import get_questions, get_custom_questions
 
 def run_evaluation(test_queries, output_csv="./data/cache_telemetry.csv", cache_enabled=True):
