@@ -16,7 +16,7 @@ Instead of relying on a language model to adapt cached plans, FlashAgent treats 
 
 1. **Ultra-Fast Variable Extraction:** We use GLiNER (Generalist Model for Named Entity Recognition) to instantly extract distinct entities and variables from the incoming user query.
 2. **Vector-Based Template Retrieval:** The core semantic intent of the query is embedded and matched against a vector database of successful, abstracted plan templates (blueprints).
-3. **Deterministic Plugging:** The variables extracted by GLiNER are deterministically mapped and plugged into the blank slots of the retrieved blueprint.
+3. **Deterministic Prompt Construction** The variables extracted by GLiNER are deterministically appended to the agent prompt after the generic plan. This allows optimal KV Cache usage by SGLang as it results in late divergence.
 
 ### Key Results & Trade-Offs
 
@@ -56,7 +56,7 @@ By replacing the LLM decoder ring with deterministic logic, FlashAgent operates 
 **2. Installation**
 Clone the repository and install the required dependencies:
 ```bash
-git clone [https://github.com/yourusername/FlashAgent.git](https://github.com/yourusername/FlashAgent.git)
+git clone [https://github.com/yourusername/FlashAgent.git](https://github.com/Dantun1/FlashAgent.git)
 cd FlashAgent
 pip install -r requirements.txt
 ```
