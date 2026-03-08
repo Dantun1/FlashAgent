@@ -34,6 +34,9 @@ Instead of relying on a language model to adapt cached plans, FlashAgent treats 
 
 *Accuracy across complex FinanceBench Queries*
 
+<img width="1033" height="447" alt="Screenshot 2026-03-08 at 01 39 11" src="https://github.com/user-attachments/assets/d593a765-3834-48cc-b46e-1a6405fd58aa" />
+*Cumulative Impact of FlashAgent across FinanceBench Queries*
+
 ### Highlights
 
 By replacing the LLM decoder ring with deterministic logic, FlashAgent operates on the extreme edge of the efficiency-accuracy Pareto frontier for agent applications. 
